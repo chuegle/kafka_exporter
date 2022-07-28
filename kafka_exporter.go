@@ -644,9 +644,16 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) {
 
 	glog.V(DEBUG).Info("Fetching consumer group metrics")
 	if len(e.client.Brokers()) > 0 {
+		processed := make(map[string]bool)
 		for _, broker := range e.client.Brokers() {
-			wg.Add(1)
-			go getConsumerGroupMetrics(broker)
+			brokerAddr := strings.ToLower(broker.Addr())
+			if _, ok := processed[brokerAddr]; !ok {
+				wg.Add(1)
+				go getConsumerGroupMetrics(broker)
+				processed[brokerAddr] = true
+			} else {
+				glog.V(INFO).Infoln("Repeated broker", broker.Addr())
+			}
 		}
 		wg.Wait()
 	} else {
